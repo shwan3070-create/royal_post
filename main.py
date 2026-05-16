@@ -27,12 +27,6 @@ def init_db():
                         price TEXT,
                         date TEXT,
                         FOREIGN KEY(office_id) REFERENCES offices(id))''')
-    
-    # دروستکردنی ئەژماری ئەدمینی سەرەکی (تەنیا بۆ جاری یەکەم)
-    cursor.execute("SELECT * FROM offices WHERE email='admin@royalpost.com'")
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO offices (office_name, email, password, status) VALUES ('Super Admin', 'admin@royalpost.com', 'admin123', 'Admin')")
-        
     conn.commit()
     conn.close()
 
@@ -44,7 +38,7 @@ st.set_page_config(page_title="Royal Post Cloud", page_icon="🌐", layout="wide
 # شێوازی فۆنت و ڕەنگەکان بە CSS
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght=400;700&display=swap');
     html, body, [data-testid="stSidebar"] {
         font-family: 'Cairo', sans-serif;
         direction: rtl;
@@ -68,36 +62,42 @@ if "logged_in" not in st.session_state:
 
 # --- ٣. شاشەی چوونەژوورەوە (Login System) ---
 if not st.session_state.logged_in:
-    
-    # زانیاری یارمەتیدەر بۆ ئەوەی بزانیت چۆن لۆگین دەکەیت
     st.info("""
-    💡 *زانیاری بۆ تاقیکردنەوەی سیستەمەکە (بۆ جاری یەکەم):*
+    💡 *زانیاری بۆ چوونەژوورەوە و تاقیکردنەوەی سیستەمەکە:*
     * *ئیمەیڵی ئەدمین:* admin@royalpost.com
-    * *کۆدی نهێنی:* admin123
-    
-    پاش چوونەژوورەوە وەک ئەدمین، دەتوانیت لە مێنیوی لای چەپ لقی نوێ دروست بکەیت و بە ئەکاونتی لقەکانیش تاقیکردنەوە بکەیت.
+    * *کۆدی نهێنی (Password):* admin123
     """)
     
     st.subheader("🔑 چوونەژوورەوە بۆ سیستەم / Login")
-    login_email = st.text_input("گیمەیڵ یان ئیمەیڵی بەکارهێنەر (Email)")
-    login_pass = st.text_input("کۆدی نهێنی (Password)", type="password")
+    login_email = st.text_input("گیمەیڵ یان ئیمەیڵی بەکارهێنەر (Email)").strip()
+    login_pass = st.text_input("کۆدی نهێنی (Password)", type="password").strip()
     
     if st.button("چوونەژوورەوە", use_container_width=True):
-        conn = sqlite3.connect("royal_post_cloud.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, office_name, status FROM offices WHERE email=? AND password=?", (login_email, login_pass))
-        user = cursor.fetchone()
-        conn.close()
-        
-        if user:
+        # پشکنینی ڕاستەوخۆ بۆ ئەدمینی سەرەکی بۆ ئەوەی بەبێ کێشە داخڵ ببیت
+        if login_email == "admin@royalpost.com" and login_pass == "admin123":
             st.session_state.logged_in = True
             st.session_state.user_email = login_email
-            st.session_state.office_id = user[0]
-            st.session_state.office_name = user[1]
-            st.session_state.user_role = user[2]
+            st.session_state.office_id = 1
+            st.session_state.office_name = "Super Admin"
+            st.session_state.user_role = "Admin"
             st.rerun()
         else:
-            st.error("گیمەیڵ یان کۆدی چوونەژوورەوەکە هەڵەیە!")
+            # پشکنینی لقەکان لە ناو داتابەیس
+            conn = sqlite3.connect("royal_post_cloud.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, office_name, status FROM offices WHERE email=? AND password=?", (login_email, login_pass))
+            user = cursor.fetchone()
+            conn.close()
+            
+            if user:
+                st.session_state.logged_in = True
+                st.session_state.user_email = login_email
+                st.session_state.office_id = user[0]
+                st.session_state.office_name = user[1]
+                st.session_state.user_role = user[2]
+                st.rerun()
+            else:
+                st.error("گیمەیڵ یان کۆدی چوونەژوورەوەکە هەڵەیە!")
 else:
     # بەشی Sidebar بۆ دەرچوون و زانیاری بەکارهێنەر
     st.sidebar.markdown(f"### 👤 بخێربێیت، {st.session_state.office_name}")
@@ -107,19 +107,22 @@ else:
         st.rerun()
     st.sidebar.write("---")
 
-    # ==================== [ خشتەی یەکەم: ئەدمینی سەرەکی - SUPER ADMIN ] ====================
+    # ==================== [ بەشی یەکەم: ئەدمینی سەرەکی - SUPER ADMIN ] ====================
     if st.session_state.user_role == "Admin":
         menu = st.sidebar.radio("پەڕەکانی کۆنتڕۆڵ:", ["📊 بینینی گشتی هەموو بارەکان", "🏢 زیادکردن و بەڕێوەبردنی ئۆفیسەکان"])
         
         if menu == "📊 بینینی گشتی هەموو بارەکان":
             st.header("📋 گشت داتاکانی کۆمپانیا (هەموو لکەکان)")
             conn = sqlite3.connect("royal_post_cloud.db")
-            df = pd.read_sql_query("""
-                SELECT shipments.id AS 'کۆدی بار', offices.office_name AS 'ئۆفیسی نێرەر', shipments.customer_name AS 'ناوی وەرگر', 
-                shipments.phone AS 'مۆبایل', shipments.address AS 'ناونیشان', shipments.item_details AS 'زانیاری بار', 
-                shipments.price AS 'نرخ', shipments.date AS 'بەروار و کات' 
-                FROM shipments JOIN offices ON shipments.office_id = offices.id ORDER BY shipments.id DESC
-            """, conn)
+            try:
+                df = pd.read_sql_query("""
+                    SELECT shipments.id AS 'کۆدی بار', offices.office_name AS 'ئۆفیسی نێرەر', shipments.customer_name AS 'ناوی وەرگر', 
+                    shipments.phone AS 'مۆبایل', shipments.address AS 'ناونیشان', shipments.item_details AS 'زانیاری بار', 
+                    shipments.price AS 'نرخ', shipments.date AS 'بەروار و کات' 
+                    FROM shipments JOIN offices ON shipments.office_id = offices.id ORDER BY shipments.id DESC
+                """, conn)
+            except:
+                df = pd.DataFrame()
             conn.close()
             
             if not df.empty:
@@ -149,7 +152,7 @@ else:
                     except:
                         st.error("ئەم گیمەیڵە پێشتر تۆمارکراوە! تکایە گیمەیڵێکی تر بەکاربهێنە.")
 
-    # ==================== [ خشتەی دووەم: بەکارهێنەری ئۆفیسەکان - BRANCHES ] ====================
+    # ==================== [ بەشی دووەم: بەکارهێنەری ئۆفیسەکان - BRANCHES ] ====================
     else:
         menu = st.sidebar.radio("مێنیوی کارەکان:", ["➕ تۆمارکردنی باری نوێ", "📦 بارەکانی ئەم ئۆفیسە و چاپکردن"])
         
@@ -186,7 +189,6 @@ else:
                 st.dataframe(df, use_container_width=True)
                 st.write("---")
                 
-                # بەشی دەرهێنانی وەسڵ و لەزگەی کارتۆن
                 selected_id = st.selectbox("کۆدی بارەکە (ID) هەڵبژێرە بۆ چاپکردن (Print):", df["id"].tolist())
                 
                 if selected_id:
@@ -213,12 +215,12 @@ else:
                                 <tr><td><b>ناوەرۆکی بار:</b> {row[4]}</td><td><b>کۆی نرخ:</b> <span style="font-size:16px; font-weight:bold; color:#1a237e;">{row[5]}</span> IQD</td></tr>
                             </table>
                             <hr style="border:0.5px solid #ccc;">
-                            <p style="text-align:center; font-size:11px; color:#555;">سوپاس بۆ هەڵبژاردنی ڕۆیاڵ پۆست، بارەکەتان لە پاراستنێکی تەواودایە.</p>
+                            <p style="text-align:center; font-size:11px; color:#555;">سوپاس بۆ هەڵبژاردنی ڕۆیاڵ پۆست.</p>
                         </div>
                         """, unsafe_allow_html=True)
                         
                     with col2:
-                        st.subheader("🏷️ ٢. لەزگەی سەر کارتۆن (Label بۆ سەر سندوق)")
+                        st.subheader("🏷️ ٢. لەزگەی سەر کارتۆن (Label)")
                         st.markdown(f"""
                         <div style="border: 4px solid #000; padding:15px; font-family:Arial, sans-serif; background:#fff; color:#000; max-width:380px; margin:auto; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
                             <h1 style="text-align:center; margin:0; color:#1a237e; font-size:32px; font-weight:bold; letter-spacing:1px;">ROYAL POST</h1>
@@ -232,11 +234,10 @@ else:
                             <hr style="border:1px dashed #000; margin:15px 0;">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <span style="font-size:14px;"><b>TRACKING ID:</b> #{row[0]}</span>
-                                <span style="font-size:14px; background:#f4f4f4; padding:2px 8px; border:1px solid #000;"><b>A4 STANDARD</b></span>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                    st.success("💡 بۆ پرینتکردنی هەر کام لەم وەسڵانە: لەسەر شاشەکە ڕایت کلیک بکە (Right Click) و فەرمانی *Print* هەڵبژێره، یان دوگمەکانی *Ctrl + P* دابگرە و بیدە بە پرینتەرەکەت بۆ سەر کاغەزی A4.")
+                    st.success("💡 بۆ پرینتکردن: دوگمەکانی Ctrl + P دابگرە.")
             else:
                 st.info("تا ئێستا هیچ بارێک لەم لقە تۆمار نەکراوە.")
