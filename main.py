@@ -47,6 +47,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
     html, body, [data-testid="stSidebar"] {
         font-family: 'Cairo', sans-serif;
+        direction: rtl;
     }
     .main-title { text-align: center; color: #1a237e; font-size: 36px; font-weight: bold; }
     .sub-title { text-align: center; color: #555; font-size: 18px; margin-bottom: 20px; }
@@ -67,6 +68,16 @@ if "logged_in" not in st.session_state:
 
 # --- ٣. شاشەی چوونەژوورەوە (Login System) ---
 if not st.session_state.logged_in:
+    
+    # زانیاری یارمەتیدەر بۆ ئەوەی بزانیت چۆن لۆگین دەکەیت
+    st.info("""
+    💡 *زانیاری بۆ تاقیکردنەوەی سیستەمەکە (بۆ جاری یەکەم):*
+    * *ئیمەیڵی ئەدمین:* admin@royalpost.com
+    * *کۆدی نهێنی:* admin123
+    
+    پاش چوونەژوورەوە وەک ئەدمین، دەتوانیت لە مێنیوی لای چەپ لقی نوێ دروست بکەیت و بە ئەکاونتی لقەکانیش تاقیکردنەوە بکەیت.
+    """)
+    
     st.subheader("🔑 چوونەژوورەوە بۆ سیستەم / Login")
     login_email = st.text_input("گیمەیڵ یان ئیمەیڵی بەکارهێنەر (Email)")
     login_pass = st.text_input("کۆدی نهێنی (Password)", type="password")
